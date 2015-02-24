@@ -1,71 +1,26 @@
 #!/bin/bash
 
+export OPSCENTERD_LOG_STDOUT=1
+TWISTD_EXTRA="$TWISTD_EXTRA -n"
 
-os=${OSTYPE//[0-9.]/}
-is_mac=0
-[ $os = "darwin" ] && is_mac=1
+REACTOR="-r epoll"
 
-if [ $is_mac = 1 ]; then
-    REACTOR="-r select"
-else
-    REACTOR="-r epoll"
-fi
-
-# get around sudo vagaries in setting $HOME
-if [ "x$OPSC_HOME" = "x" ]; then
-    if [ $is_mac = 1 ]; then
-        OPSC_HOME="/Users/$USER"
-    else
-        OPSC_HOME=$(getent passwd $(id -u) | cut -d ':' -f 6)
-    fi
-fi
 export HOME=$OPSC_HOME
 
-cd "$(dirname "$0")"/../
+cd $HOME
 
-if [ $(uname -m) = "x86_64" ]; then
-    PY_ARCH="amd64"
-else
-    PY_ARCH="i386"
-fi
 
-# we support python2.6-2.7
-PYVERSIONS="2.6 2.7"
+PY_ARCH="amd64"
 
-[ -z "$PYTHON" ] && \
-for i in $PYVERSIONS; do
-    which python$i > /dev/null 2>&1 && PYTHON=$(which python$i)
-done
+PYTHON=/usr/bin/python2.7
+
 [ -n "$PYTHON" ] || {
     echo "No python interpreter found. Abort." >&2
     exit 3
 }
 
 PY_VER=$($PYTHON -c "import platform; v = platform.python_version(); print v[:v.index('.', 2)]")
-if [ $is_mac = 1 ]; then
-    PY_DISTRO="./lib/py-osx/${PY_VER}/amd64" # always use 64bit for OS X
-elif [ -f "/etc/system-release" ]; then
-    # This branch is for the Amazon Linux distribution
-    # We will use the highest level "VER" available because Amazon Linux
-    # does not use version numbers like RHEL and Centos
-    VER=`ls -1 ./lib/py-redhat/${PY_VER}/ | sort -n | tail -n 1`
-    PY_DISTRO="./lib/py-redhat/${PY_VER}/shared/${PY_ARCH}:./lib/py-redhat/${PY_VER}/${VER}/${PY_ARCH}"
-elif [ -f "/etc/redhat-release" ]; then
-    VER=`rpm -q centos-release --qf %{VERSION}`
-    if [ 1 -eq $? ]; then
-        VER=`rpm -q redhat-release --qf %{VERSION}` # RHEL 5
-        if [ 1 -eq $? ]; then
-            VER=`rpm -q redhat-release-server --qf %{VERSION}` # RHEL 6
-            if [ 1 -eq $? ]; then
-                VER=`rpm -q enterprise-release --qf %{VERSION}` # Oracle Linux
-            fi
-        fi
-    fi
-    VER=`echo $VER | cut -b 1`
-    PY_DISTRO="./lib/py-redhat/${PY_VER}/shared/${PY_ARCH}:./lib/py-redhat/${PY_VER}/${VER}/${PY_ARCH}"
-else
-    PY_DISTRO="./lib/py-debian/${PY_VER}/${PY_ARCH}"
-fi
+PY_DISTRO="./lib/py-unpure"
 
 export PYTHONPATH="./src:\
 /usr/lib/python${PY_VER}/site-packages:\
@@ -75,14 +30,14 @@ export PYTHONPATH="./src:\
 ${PY_DISTRO}:\
 ${PYTHONPATH}:"
 
-$OPSCENTERD_CONFIG_DIR="./conf"
+export OPSCENTERD_CONFIG_DIR="${OPSC_HOME}/conf"
 
 [ -n "$OPSCENTERD_CONFIG_DIR" ] || {
     echo "Could not find OpsCenter config dir." >&2
     exit 4
 }
 
-TWISTD="${OPSC_HOME}/bin/twistd"
-export PYTHONPATH="./lib/py-unpure/:${PYTHONPATH}"
+TWISTD="/usr/bin/twistd"
+export PYTHONPATH="${PYTHONPATH}:$OPSC_HOME/lib/py-unpure/"
 
 "$PYTHON" $TWISTD $TWISTD_EXTRA $REACTOR -oy bin/start_opscenter.py
