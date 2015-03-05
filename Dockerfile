@@ -28,7 +28,10 @@ RUN mkdir -p ${OPSCENTER_CONF} && \
   rm /tmp/opkg-lists/* && \
   echo "export PATH=$PATH:$OPSC_HOME/bin" >> /etc/profile
 
-# Expose ports
+# OpsCenter Web UI
 EXPOSE 8888
+
+# OpsCenter monitoring port. The opscenterd daemon listens on this port for TCP traffic coming from the agent.
+EXPOSE 61620
 
 CMD ["/start-opscenter"]
