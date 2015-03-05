@@ -80,6 +80,19 @@ enabled = True
 # interval = 86400 # 24 hours
 interval = 0
 
+[agents]
+use_ssl = false
+
+EOF
+
+mkdir -p ${OPSCENTERD_CONFIG_DIR}/clusters
+
+cat <<EOF> ${OPSCENTERD_CONFIG_DIR}/clusters/${CLUSTER_NAME}.conf
+[cassandra]
+username = cassandra
+password = ${CASS_PASS}
+seed_hosts = ${SEEDS}
+api_port = 9160
 EOF
 
 TWISTD="/usr/bin/twistd"
